@@ -5,7 +5,7 @@ import re
 import json
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
-from selenium.common.exceptions import TimeoutException,StaleElementReferenceException
+from selenium.common.exceptions import TimeoutException,StaleElementReferenceException,NoSuchElementException
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions as EC
 import ddddocr
@@ -13,8 +13,9 @@ import ddddocr
 class NotSelectCourseError(Exception):
     def __init__(self, *args: object) -> None:
         super().__init__(*args)
-
+#TODO： 新增简易GUI
 class Log:
+    #TODO：将日志加入时间并写入log.txt中。
     def __init__(self) -> None:
         pass
 
@@ -72,7 +73,6 @@ class ToolKit(Log):
                 locator=(byType,val)
                 element=WebDriverWait(self.driver,60).until(EC.presence_of_element_located(locator))
                 if word != '-1':
-                    
                     element=WebDriverWait(self.driver,60).until(EC.text_to_be_present_in_element(locator,word))
                 return element
             except TimeoutException:
@@ -160,15 +160,10 @@ class LAS(ToolKit):
         elementRemove=['body > div.el-message-box__wrapper','body > div.v-modal','.right_service1','.right_service2','.right_service3','.right_service4','.right_service5']
         for i in elementRemove:
             self.driver.execute_script("document.querySelector(\'"+i+"\').remove()")
-        
-        self.appear_wait(self.XPATH,self.xpath['username_input']).send_keys(self.config['userName'])
-        self.appear_wait(self.XPATH,self.xpath['password_input']).send_keys(self.config['passWord'])
-        self.debug("输入用户名和密码")
 
         while True:
             self.debug("识别验证码")
-            #截图获取验证码
-            self.driver.find_element(By.XPATH,self.xpath['textcode_img']).screenshot('needocr.png')
+            self.appear_wait(self.XPATH,self.xpath['textcode_img']).screenshot('needocr.png')
             textcode=self.ocrToCode()
             if textcode == -1:
                 self.driver.find_element(By.XPATH,self.xpath['textcode_img']).click()
@@ -176,10 +171,16 @@ class LAS(ToolKit):
             else:
                 self.debug("输入验证码")
                 self.driver.find_element(By.XPATH,self.xpath['textcode_input']).send_keys(textcode)
+                self.appear_wait(self.XPATH,self.xpath['username_input']).send_keys(self.config['userName'])
+                self.appear_wait(self.XPATH,self.xpath['password_input']).send_keys(self.config['passWord'])
+                self.debug("输入用户名和密码")
                 self.driver.find_element(By.XPATH,self.xpath['login_button']).click()
-                break
-
-        self.appear_wait(self.CSS,self.css['index_studyCenter'],word='学习中心').click()
+                try:
+                    self.appear_wait(self.CSS,self.css['index_studyCenter'],retryTime=1,word='学习中心').click()
+                except TimeoutException:
+                    continue
+                else:
+                    break
         
         self.info("登录成功，用户信息保存至config.json中...")
         if os.path.exists("config.json") == False:
@@ -237,7 +238,7 @@ class LAS(ToolKit):
                         studytime=studytime[0:2]+studytime[3:len(studytime)]
                     if studytime[6] == '0':
                         if studytime[7] == '0':
-                            self.error("视频时间检测失败")
+                            self.error("视频时间检测失败")#TODO:等待视频时间加载出来
                         studytime=studytime[0:6]+studytime[7:len(studytime)]
                         
                     self.info("当前时间，总时间:"+studytime)
@@ -249,6 +250,7 @@ class LAS(ToolKit):
                     remainingMin=videoDurationMin-studyCurrentTimeMin
                     self.debug("剩余分钟： "+str(remainingMin))
                     realremainingMin=remainingMin+1
+                    #TODO：更新视频时间获取逻辑：从源代码中获取。
                     for i in range(0,remainingMin+1,1):
                         if realremainingMin == 1:
                             self.info("延时一分钟，等待课程结束退出...")
