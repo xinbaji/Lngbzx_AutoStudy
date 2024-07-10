@@ -1,35 +1,46 @@
-from selenium import webdriver
-import time
 import os
 import re
+import time
 import json
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
+
+from selenium import webdriver
 from selenium.common.exceptions import TimeoutException,StaleElementReferenceException,NoSuchElementException
-from selenium.webdriver.remote.webelement import WebElement
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.remote.webelement import WebElement
+
 import ddddocr
 
 class NotSelectCourseError(Exception):
     def __init__(self, *args: object) -> None:
         super().__init__(*args)
-#TODO： 新增简易GUI
+        
 class Log:
-    #TODO：将日志加入时间并写入log.txt中。
     def __init__(self) -> None:
-        pass
-
+        self.log_file=open ("log.txt","a+")
+        self.log_file.write("\n")
+        self.log_file.write("****************************启动******************************")    
+    def writeToLogTxt(self,text):
+        self.log_file.write('\n')
+        self.log_file.write(text)
     def info(self,text):
-        print("[info]"+str(text))
+        log_text="[ "+time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())+" ][Info]  "+str(text)
+        print(log_text)
+        self.writeToLogTxt(log_text)
 
     def error(self,text):
-        print("[error]"+str(text))
+        log_text="[ "+time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())+" ][Error] "+str(text)
+        print(log_text)
+        self.writeToLogTxt(log_text)
 
     def debug(self,text):
-        debug_mode = 0
-
-        if debug_mode == 0:
-            print("[debug]"+str(text))
+        debug_print = 0
+        log_text="[ "+time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())+" ][Debug] "+str(text)
+        if debug_print == 0:
+            print(log_text)
+            self.writeToLogTxt(log_text)
         else:
             pass
 
@@ -56,47 +67,44 @@ class ToolKit(Log):
         self.info("当前验证码为："+code)
         return code
             
-    def appear_wait(self,byType,val:str,retryTime:int=3,word:str='-1') -> WebElement:
+    def appear_wait(self,byType,val:str,retryTime:int=3) -> WebElement:
         """等待元素出现或元素中出现目标文字，返回网页元素对象
 
         Args:
             byType : self.CSS or self.XPATH
             val (str): _description_
             retryTime (int, optional): 重试次数. Defaults to 3.
-            word (str, optional): 目标文字. Defaults to None.
 
         Returns:
             WebElement: 元素对象
         """        
         for i in range(0,retryTime,1):
             try:
-                locator=(byType,val)
-                element=WebDriverWait(self.driver,60).until(EC.presence_of_element_located(locator))
-                if word != '-1':
-                    element=WebDriverWait(self.driver,60).until(EC.text_to_be_present_in_element(locator,word))
+                element=WebDriverWait(self.driver,60).until(EC.presence_of_element_located((byType,val)))
                 return element
             except TimeoutException:
-                self.debug("刷新页面")
+                self.debug("单次等待超时，刷新页面 ..")
                 self.driver.refresh()
                 
         argsDic={
             'func_name':'appear_wait',
-            'type':type,
+            'type':byType,
             'val':val,
             'retryTime':retryTime,
-            'word':word
         }        
-        raise TimeoutException("等待元素超时，程序退出。"+str(argsDic))
+        raise TimeoutException("等待元素超时"+str(argsDic))
 
 class LAS(ToolKit):
     
-    CSS=By.CSS_SELECTOR
-    XPATH=By.XPATH
+    
 
     def __init__(self) -> None:
 
         super().__init__()
 
+        self.CSS=By.CSS_SELECTOR
+        self.XPATH=By.XPATH
+        
         if os.path.exists('config.json') == False:
             self.config={
             'userName':"",
@@ -134,9 +142,10 @@ class LAS(ToolKit):
             "index_infoButtonWord":'body > div.el-message-box__wrapper > div > div.el-message-box__btns > button',
             "index_infoWord":'body > div.el-message-box__wrapper > div > div.el-message-box__header > div > span',
             "index_studyCenter":"#app > div.is_cont > div > div > div.banner_info > div.login_info.fr > div > div.category > div:nth-child(1)",
-            "course_mycourse":'#app > div.is_cont > div.wrapper > ul > li.nav_bar.active > div.nav_bar_title',
+            "course_mycourse":'#app > div.is_cont > div.wrapper > ul > li:nth-child(2) > div.nav_bar_title',
             "course_incompleteCourse":"#app > div.is_cont > div:nth-child(3) > div.wrapper > div > div.content_left > div > ul > li:nth-child(1) > div.text.activeText",
             "course_remainCourseNum":"#app > div.is_cont > div:nth-child(3) > div.wrapper > div > div.content_right > div.optional > div.optional_left.clearfix > div:nth-child(1) > span",
+            "course_remainCoursePageInput":"#app > div.is_cont > div:nth-child(3) > div.wrapper > div > div.content_right > div.content_course > div > div.btn > div > div > div > span.el-pagination__jump > div > input",
             "course_study":"#app > div.is_cont > div:nth-child(3) > div.wrapper > div > div.content_right > div.content_course > div > ul > li:nth-child(1) > div:nth-child(1) > div > div.course_list_right > div.course_list_right_timer > div.antClick.clearfix > div > div.Save",
             "course_cancel":'#app > div.is_cont > div:nth-child(3) > div.wrapper > div > div.content_right > div.content_course > div > ul > li:nth-child(1) > div:nth-child(1) > div > div.course_list_right > div.course_list_right_timer > div.antClick.clearfix > div > div.Cancel',
             "course_cancelConfirm":"body > div.el-message-box__wrapper > div > div.el-message-box__btns > button.el-button.el-button--default.el-button--small.el-button--primary",
@@ -147,7 +156,41 @@ class LAS(ToolKit):
             "study_percentage":"#app > div.is_cont > div:nth-child(3) > div.wrapper > div > div.content_right > div.content_course > div > ul > li:nth-child(1) > div.foter > div > div.el-progress__text",
             "study_title":"#app > div.is_cont > div:nth-child(3) > div.wrapper > div > div.content_right > div.content_course > div > ul > li:nth-child(1) > div:nth-child(1) > div > div.course_list_right > div.course_list_right_title.oneEllipsis",
             }
-
+    def getVideoPlayTime(self,timeout=120):
+        retryCount=0
+        while retryCount<=timeout:
+            ex='\d{2}:\d{2} / \d{2}:\d{2}'
+            text=self.driver.page_source
+            result=re.findall(ex,text,re.S)
+            '''21:08 / 45:48'''
+            if len(result) != 1 :
+                time.sleep(0.5)
+                retryCount+=1
+                continue
+            if len(result[0]) != 13:
+                time.sleep(0.5)
+                retryCount+=1
+                continue
+            else:
+                self.info("当前时间/总时间："+str(result[0]))
+                return result[0]
+                
+    def getVideoRemainingMin(self,studytime):
+        if studytime[0] == '0':
+            studytime=studytime[1:len(studytime)]
+        if studytime[2] == '0':
+            studytime=studytime[0:2]+studytime[3:len(studytime)]
+        if studytime[6] == '0':
+            studytime=studytime[0:6]+studytime[7:len(studytime)]
+            
+        '''21:08 / 45:48'''
+        '''0:8 / 33:50'''
+        ex='(.*?):(.*?) / (.*?):'
+        result=re.findall(ex,studytime,re.S)[0]
+        studyCurrentTimeMin,videoDurationMin=eval(result[0]),eval(result[2])
+        remainingMin=videoDurationMin-studyCurrentTimeMin
+        return remainingMin
+        
     def login(self):
 
         self.driver.set_page_load_timeout(10)
@@ -162,62 +205,80 @@ class LAS(ToolKit):
             self.driver.execute_script("document.querySelector(\'"+i+"\').remove()")
 
         while True:
-            self.debug("识别验证码")
+            self.info("识别验证码中")
             self.appear_wait(self.XPATH,self.xpath['textcode_img']).screenshot('needocr.png')
             textcode=self.ocrToCode()
             if textcode == -1:
                 self.driver.find_element(By.XPATH,self.xpath['textcode_img']).click()
                 time.sleep(2)
             else:
-                self.debug("输入验证码")
+                self.info("正在输入验证码")
+                self.driver.find_element(By.XPATH,self.xpath['textcode_input']).clear()
                 self.driver.find_element(By.XPATH,self.xpath['textcode_input']).send_keys(textcode)
+                self.appear_wait(self.XPATH,self.xpath['username_input']).clear()
+                self.appear_wait(self.XPATH,self.xpath['password_input']).clear()
                 self.appear_wait(self.XPATH,self.xpath['username_input']).send_keys(self.config['userName'])
                 self.appear_wait(self.XPATH,self.xpath['password_input']).send_keys(self.config['passWord'])
-                self.debug("输入用户名和密码")
+                self.info("正在输入用户名和密码")
                 self.driver.find_element(By.XPATH,self.xpath['login_button']).click()
+                time.sleep(3)
                 try:
-                    self.appear_wait(self.CSS,self.css['index_studyCenter'],retryTime=1,word='学习中心').click()
-                except TimeoutException:
-                    continue
-                else:
+                    self.driver.find_element(By.XPATH,self.xpath['login_button'])
+                except NoSuchElementException:
+                    self.appear_wait(self.CSS,self.css['index_studyCenter'],retryTime=3).click()
+                    self.info("进入学习中心")
                     break
+                else:
+                    continue
         
-        self.info("登录成功，用户信息保存至config.json中...")
+        
         if os.path.exists("config.json") == False:
+            self.info("登录成功，用户信息保存至config.json中...")
             with open("config.json","w") as f:
                     f.write(self.json_str)
                     f.close()
+        else:
+            self.info("登录成功!")
         
-        self.appear_wait(self.XPATH,self.css['course_mycourse'],word='我的课程')
+        self.appear_wait(self.XPATH,self.xpath['course_mycourse']).click()
         self.info("正在获取当前进度，请稍后...")
         self.remainNum=eval(self.appear_wait(self.CSS,self.css['course_remainCourseNum']).text)
         
         if  self.remainNum == 0:
-            #self.error("请先选课或本次学习已完成...")
+            self.error("请先选课或本次学习已完成...")
             raise NotSelectCourseError("请先选课或本次学习已完成...")
         else:
             self.info("当前有 "+str(self.remainNum)+" 节未完成学习")
         
         return self
     
-    def studyCourse(self):
+    def studyCourse(self,studyorder):
         while True:
             if self.remainNum == 0:
                 self.info("全部学习已完成...")
                 break
             else:
+                firsttitle=self.appear_wait(self.CSS,self.css['study_title']).text
+                if studyorder == -1:
+                    self.appear_wait(self.CSS,self.css['course_remainCoursePageInput']).send_keys('99')
+                    self.appear_wait(self.CSS,self.css['course_remainCoursePageInput']).send_keys(Keys.ENTER)
+                    time.sleep(0.5)
                 title=self.appear_wait(self.CSS,self.css['study_title']).text
                 videoPercentage=self.driver.find_element(By.CSS_SELECTOR,self.css['study_percentage']).text
                 self.info("正在学习："+str(title))
                 self.info("当前课程学习进度："+str(videoPercentage))
                 self.info("进入播放页面开始学习...")
-                self.driver.find_element(By.CSS_SELECTOR,self.css['course_study']).click()
+                self.appear_wait(self.CSS,self.css['course_study']).click()
+                time.sleep(2)
+                self.debug(self.driver.window_handles[0])
+                self.debug(self.driver.window_handles[-1])
                 self.driver.switch_to.window(self.driver.window_handles[-1])
-                self.appear_wait(self.XPATH,self.xpath['study_confirmbutton']).click()
+                self.appear_wait(self.CSS,self.css['study_confirm']).click()
                 
                 while True:
                     try:
-                        studytime=self.appear_wait(self.XPATH,self.xpath['study_videoduration']).text
+                        studytime=self.appear_wait(self.XPATH,self.xpath['study_videoduration'],retryTime=1).text
+                        '''34:57 / 40:40'''
                     except StaleElementReferenceException as sere:
                         self.error("加载不了，这是一个坏课。我要删掉哦")
                         self.driver.close()
@@ -231,39 +292,36 @@ class LAS(ToolKit):
                         time.sleep(2)
                         self.driver.refresh()
                         break
-
-                    if studytime[0] == '0':
-                        studytime=studytime[1:len(studytime)]
-                    if studytime[2] == '0':
-                        studytime=studytime[0:2]+studytime[3:len(studytime)]
-                    if studytime[6] == '0':
-                        if studytime[7] == '0':
-                            self.error("视频时间检测失败")#TODO:等待视频时间加载出来
-                        studytime=studytime[0:6]+studytime[7:len(studytime)]
-                        
-                    self.info("当前时间，总时间:"+studytime)
-                    '''21:08 / 45:48'''
-                    '''0:8 / 33:50'''
-                    ex='(.*?):(.*?) / (.*?):'
-                    result=re.findall(ex,studytime,re.S)[0]
-                    studyCurrentTimeMin,videoDurationMin=eval(result[0]),eval(result[2])
-                    remainingMin=videoDurationMin-studyCurrentTimeMin
-                    self.debug("剩余分钟： "+str(remainingMin))
-                    realremainingMin=remainingMin+1
-                    #TODO：更新视频时间获取逻辑：从源代码中获取。
-                    for i in range(0,remainingMin+1,1):
-                        if realremainingMin == 1:
-                            self.info("延时一分钟，等待课程结束退出...")
+                    
+                    while True:
+                        if studytime[8] == '0' and studytime[9] == '0':
+                            studytime=self.getVideoPlayTime()
                         else:
-                            self.info("当前课程剩余时间："+str(realremainingMin)+" 分钟")
-                        time.sleep(60)
-                        realremainingMin -= 1
+                            break
+                    
+                    remainingMin=self.getVideoRemainingMin(studytime)
+                    
+                    self.info("剩余分钟： "+str(remainingMin))
+                    
+                    while True:
+                        studytime=self.getVideoPlayTime()
+                        remainingMin=self.getVideoRemainingMin(studytime)
+                        if remainingMin == 0:
+                            self.info("延时一分钟，等待课程结束退出...")
+                            time.sleep(60)
+                            self.remainNum -=1
+                            break
+                        else:
+                            self.info("当前课程剩余时间："+str(remainingMin)+" 分钟")
+                            time.sleep(60)
 
                     self.driver.close()
                     self.driver.switch_to.window(self.driver.window_handles[-1])
                     self.driver.refresh()
+                    self.info("开始学习下一课...")
                     break
                     
 las=LAS()
-las.login().studyCourse()
+las.login().studyCourse(-1)
+
     
