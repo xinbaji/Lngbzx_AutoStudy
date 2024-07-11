@@ -50,7 +50,6 @@ class ToolKit(Log):
         super().__init__()
     
         
-        self.ocr=ddddocr.DdddOcr()
 
     def ocrToCode(self) -> str:
         image = open("needocr.png", "rb").read()
@@ -119,7 +118,7 @@ class LAS(ToolKit):
 
         self.CSS=By.CSS_SELECTOR
         self.XPATH=By.XPATH
-        
+        print("辽宁干部学习网刷课程序 Created by Xinbaji\n")
         if os.path.exists('config.json') == False:
             self.config={
             'STUDY_ORDER':1,   
@@ -176,6 +175,8 @@ class LAS(ToolKit):
             }
         
         self.driver=webdriver.Edge()
+        file_path=os.path.join(os.getcwd(),'common_old.onnx')
+        self.ocr=ddddocr.DdddOcr()
     def getVideoPlayTime(self,timeout=120):
         retryCount=0
         while retryCount<=timeout:
