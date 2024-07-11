@@ -368,13 +368,13 @@ class LAS(ToolKit):
 
 while True:
     try:
+        log=Log()
         las=LAS()
         las.login().studyCourse(las.config['STUDY_ORDER'])
         if las.remainNum == 0:
             break
     except Exception as e:
-        las.driver.quit()
-        las.error(traceback.format_exc())
-        las.error('发生错误， '+str(las.config['RESTART_SECONDS'])+' 秒等待后重启')
+        log.error(traceback.format_exc())
+        log.error('发生错误， '+str(las.config['RESTART_SECONDS'])+' 秒等待后重启')
         time.sleep(las.config['RESTART_SECONDS'])
     
