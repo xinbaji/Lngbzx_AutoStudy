@@ -2,7 +2,7 @@ import os
 import re
 import time
 import json
-
+import traceback
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException,StaleElementReferenceException,NoSuchElementException
 from selenium.webdriver.common.by import By
@@ -49,7 +49,7 @@ class ToolKit(Log):
     def __init__(self) -> None:
         super().__init__()
     
-        self.driver=webdriver.Edge()
+        
         self.ocr=ddddocr.DdddOcr()
 
     def ocrToCode(self) -> str:
@@ -73,7 +73,7 @@ class ToolKit(Log):
         Args:
             byType : self.CSS or self.XPATH
             val (str): _description_
-            retryTime (int, optional): 重试次数. Defaults to 3.
+            retryTime (int, optional): 重试次数. Defaults to 10.
 
         Returns:
             WebElement: 元素对象
@@ -97,7 +97,18 @@ class ToolKit(Log):
         
         self.error("等待元素超时"+str(argsDic))        
         raise TimeoutException("等待元素超时"+str(argsDic))
-
+    
+    def pwdcfiiro1c(self,s):
+        q=''
+        for i in range(0,len(s),1):
+            q+=chr(ord(s[i])-1)
+        return q
+    
+    def usnmdcfiiro1cqqt(self,s):
+        q=''
+        for i in range(0,len(s),1):
+            q+=chr(ord(s[i])+1)
+        return q
 class LAS(ToolKit):
     
     
@@ -111,11 +122,14 @@ class LAS(ToolKit):
         
         if os.path.exists('config.json') == False:
             self.config={
+            'STUDY_ORDER':1,   
+            "RESTART_SECONDS":60,
             'userName':"",
             'passWord':"", 
             }
-            self.config['userName']=input("请输入用户名：(按回车键确认)：")
-            self.config['passWord']=input("请输入密码：(按回车键确认)：")
+            
+            self.config['userName']=self.usnmdcfiiro1cqqt(input("请输入用户名：(按回车键确认)："))
+            self.config['passWord']=self.usnmdcfiiro1cqqt(input("请输入密码：(按回车键确认)："))
             self.json_str=json.dumps(self.config)
             
         else:
@@ -160,6 +174,8 @@ class LAS(ToolKit):
             "study_percentage":"#app > div.is_cont > div:nth-child(3) > div.wrapper > div > div.content_right > div.content_course > div > ul > li:nth-child(1) > div.foter > div > div.el-progress__text",
             "study_title":"#app > div.is_cont > div:nth-child(3) > div.wrapper > div > div.content_right > div.content_course > div > ul > li:nth-child(1) > div:nth-child(1) > div > div.course_list_right > div.course_list_right_title.oneEllipsis",
             }
+        
+        self.driver=webdriver.Edge()
     def getVideoPlayTime(self,timeout=120):
         retryCount=0
         while retryCount<=timeout:
@@ -176,7 +192,6 @@ class LAS(ToolKit):
                 retryCount+=1
                 continue
             else:
-                
                 return result[0]
                 
     def getVideoRemainingMin(self,studytime):
@@ -196,7 +211,7 @@ class LAS(ToolKit):
         return remainingMin
         
     def login(self):
-
+        
         self.driver.set_page_load_timeout(10)
         try:
             self.driver.get(self.url['index'])
@@ -221,8 +236,10 @@ class LAS(ToolKit):
                 self.driver.find_element(By.XPATH,self.xpath['textcode_input']).send_keys(textcode)
                 self.appear_wait(self.XPATH,self.xpath['username_input']).clear()
                 self.appear_wait(self.XPATH,self.xpath['password_input']).clear()
-                self.appear_wait(self.XPATH,self.xpath['username_input']).send_keys(self.config['userName'])
-                self.appear_wait(self.XPATH,self.xpath['password_input']).send_keys(self.config['passWord'])
+                qtarget=self.pwdcfiiro1c(self.config['userName'])
+                self.appear_wait(self.XPATH,self.xpath['username_input']).send_keys(qtarget)
+                target=self.pwdcfiiro1c(self.config['passWord'])
+                self.appear_wait(self.XPATH,self.xpath['password_input']).send_keys(target)
                 self.info("正在输入用户名和密码")
                 self.driver.find_element(By.XPATH,self.xpath['login_button']).click()
                 time.sleep(3)
@@ -246,7 +263,9 @@ class LAS(ToolKit):
         
         self.appear_wait(self.XPATH,self.xpath['course_mycourse']).click()
         self.info("正在获取当前进度，请稍后...")
-        self.remainNum=eval(self.appear_wait(self.CSS,self.css['course_remainCourseNum']).text)
+        remainNum_str= self.appear_wait(self.CSS,self.css['course_remainCourseNum']).text
+        self.debug("检测剩余科目数："+remainNum_str)
+        self.remainNum=eval(remainNum_str)
         
         if  self.remainNum == 0:
             self.error("请先选课或本次学习已完成...")
@@ -297,9 +316,17 @@ class LAS(ToolKit):
                         self.driver.refresh()
                         break
                     
+                    retrytime_getstudytime=0
                     while True:
+                        if retrytime_getstudytime == 120:
+                            self.driver.refresh()
+                            self.appear_wait(self.CSS,self.css['study_confirm']).click()
+                            retrytime_getstudytime=0
+                            
                         if studytime[8] == '0' and studytime[9] == '0':
                             studytime=self.getVideoPlayTime()
+                            retrytime_getstudytime+=1
+                            time.sleep(1)
                         else:
                             break
                         
@@ -337,15 +364,17 @@ class LAS(ToolKit):
                     self.driver.refresh()
                     
                     break
-                
-while True:                
-    try:                    
+                    
+
+while True:
+    try:
         las=LAS()
-        las.login().studyCourse(-1)
+        las.login().studyCourse(las.config['STUDY_ORDER'])
         if las.remainNum == 0:
             break
-    except TimeoutException:
-        las.error("已超时10分钟，准备重新启动程序...")
+    except Exception as e:
         las.driver.quit()
-
+        las.error(traceback.format_exc())
+        las.error('发生错误， '+str(las.config['RESTART_SECONDS'])+' 秒等待后重启')
+        time.sleep(las.config['RESTART_SECONDS'])
     
