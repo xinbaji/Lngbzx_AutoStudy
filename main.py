@@ -67,7 +67,7 @@ class ToolKit(Log):
         self.info("当前验证码为："+code)
         return code
             
-    def appear_wait(self,byType,val:str,retryTime:int=3) -> WebElement:
+    def appear_wait(self,byType,val:str,retryTime:int=10) -> WebElement:
         """等待元素出现或元素中出现目标文字，返回网页元素对象
 
         Args:
@@ -77,21 +77,25 @@ class ToolKit(Log):
 
         Returns:
             WebElement: 元素对象
-        """        
-        for i in range(0,retryTime,1):
-            try:
-                element=WebDriverWait(self.driver,60).until(EC.presence_of_element_located((byType,val)))
-                return element
-            except TimeoutException:
-                self.debug("单次等待超时，刷新页面 ..")
-                self.driver.refresh()
-                
+        """     
         argsDic={
             'func_name':'appear_wait',
             'type':byType,
             'val':val,
             'retryTime':retryTime,
-        }        
+        }   
+        for i in range(0,retryTime,1):
+            try:
+                element=WebDriverWait(self.driver,60).until(EC.presence_of_element_located((byType,val)))
+                return element
+            except TimeoutException:
+                self.debug("args:"+str(argsDic))
+                self.error("第 "+str(i)+" 次等待超时，刷新页面 ..")
+                
+                self.driver.refresh()
+                
+        
+        self.error("等待元素超时"+str(argsDic))        
         raise TimeoutException("等待元素超时"+str(argsDic))
 
 class LAS(ToolKit):
@@ -172,7 +176,7 @@ class LAS(ToolKit):
                 retryCount+=1
                 continue
             else:
-                self.info("当前时间/总时间："+str(result[0]))
+                
                 return result[0]
                 
     def getVideoRemainingMin(self,studytime):
@@ -298,9 +302,11 @@ class LAS(ToolKit):
                             studytime=self.getVideoPlayTime()
                         else:
                             break
-                    
+                        
+                    self.info("当前时间/总时间："+str(studytime))
                     remainingMin=self.getVideoRemainingMin(studytime)
-                    
+                    preremainingMin=remainingMin
+                    retrycount = 0
                     self.info("剩余分钟： "+str(remainingMin))
                     
                     while True:
@@ -310,18 +316,36 @@ class LAS(ToolKit):
                             self.info("延时一分钟，等待课程结束退出...")
                             time.sleep(60)
                             self.remainNum -=1
+                            self.info("开始学习下一课...")
                             break
                         else:
                             self.info("当前课程剩余时间："+str(remainingMin)+" 分钟")
+                            if preremainingMin != remainingMin:
+                                preremainingMin = remainingMin
+                                retrycount = 0
+                            else:
+                                if retrycount == 6:
+                                    self.error("视频加载超时，准备刷新...")
+                                    break
+                                else:
+                                    retrycount +=1
+                            
                             time.sleep(60)
 
                     self.driver.close()
                     self.driver.switch_to.window(self.driver.window_handles[-1])
                     self.driver.refresh()
-                    self.info("开始学习下一课...")
-                    break
                     
-las=LAS()
-las.login().studyCourse(-1)
+                    break
+                
+while True:                
+    try:                    
+        las=LAS()
+        las.login().studyCourse(-1)
+        if las.remainNum == 0:
+            break
+    except TimeoutException:
+        las.error("已超时10分钟，准备重新启动程序...")
+        las.driver.quit()
 
     
