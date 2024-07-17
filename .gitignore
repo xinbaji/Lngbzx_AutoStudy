@@ -9,3 +9,6 @@ img/needocr.png
 data/__pycache__/path.cpython-311.pyc
 config/__pycache__/config.cpython-311.pyc
 config/config.json
+main.spec
+dist
+build
