@@ -16,14 +16,15 @@ class Driver:
     
     def __init__(self) -> None:
         self.log=Log('selenium','i')
-        target_path=os.path.join(os.getcwd(),'utils\\')
+        '''target_path=os.path.join(os.getcwd(),'utils\\')
         driver_exe = target_path+"msedgedriver.exe"
         if not os.path.exists('./utils/msedgedriver.exe'):
             self.log.info("未安装浏览器驱动，正在下载...")
             driver_path=EdgeChromiumDriverManager().install()
             shutil.copy(driver_path,target_path)
         
-        self.driver=webdriver.Edge(service=EdgeService(executable_path=driver_exe))
+        self.driver=webdriver.Edge(service=EdgeService(executable_path=driver_exe))'''
+        self.driver=webdriver.Edge()
         self.driver.set_page_load_timeout(10)
         
 

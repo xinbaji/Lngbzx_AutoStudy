@@ -1,9 +1,14 @@
 import logging
-
+import os
 class Log:
     def __init__(self,log_name,mode:str = 'i') -> None:
         log_level = logging.DEBUG if mode == 'd' else logging.INFO
-        
+        if not os.path.exists("./log/log.txt"):
+            os.makedirs('log',exist_ok=True)
+            with open("./log/log.txt","w") as f:
+                f.write("日志生成成功！")
+                f.write("\n")
+                f.close()
         handler = logging.FileHandler("./log/log.txt")
         handler.setLevel(level = log_level)
         formatter = logging.Formatter('%(asctime)s - %(funcName)s - %(levelname)s - %(message)s')

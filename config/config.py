@@ -26,10 +26,9 @@ class Config:
             self.get_username_and_password()
                 
     def get_username_and_password(self):
-        #username=input("请输入用户名（按回车键确认）：")
-        #password=input("请输入密码（按回车键确认）：")
-        username = '15040302565'
-        password = 'Cyh8576336758'
+        username=input("请输入用户名（按回车键确认）：")
+        password=input("请输入密码（按回车键确认）：")
+        
         self.add_encrypted_val('userName',username)
         self.add_encrypted_val('passWord',password)
           
