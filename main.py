@@ -1,210 +1,102 @@
-from utils.log import Log
-from utils.ocr import Ocr
-from utils.selenium import Driver
-from utils.selenium import NoSuchElementException,StaleElementReferenceException
-from data.path import Xpath,Css,Url
-from config.config import Config
-from time import sleep
-import traceback
+from utils.EasySelenium import Driver,Log
+from utils.Path import Path
+from utils.Ocr import ocr
 
-import os
-import re
-
-class Las:
-    def __init__(self) -> None:
-        self.log=Log('las','d')
-        self.log.info("__________ 辽宁干部学习网刷课程序 Created by Xinbaji __________")
-        
-        self.config=Config()
-        self.ocr=Ocr()
+def handle_exception(func):
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            args[0].driver.quit()
+    return wrapper
+class Lngbzx_Autostudy:
+    def __init__(self,username:str,password:str):
+        self.username = username
+        self.password = password
         self.driver = Driver()
-        
-        self.xpath=Xpath()
-        self.css=Css()
-        self.url=Url()
+        self.log=Log("Lngbzx_Autostudy", "i").logger
+        self.path = Path()
         
     def login(self):
-        self.driver.get(self.url.index())
-        self.driver.wait_to_be_visible(self.css.index_infoButtonWord())
-        elementRemove=['body > div.el-message-box__wrapper','body > div.v-modal','.right_service1','.right_service2','.right_service3','.right_service4','.right_service5']
-        self.driver.remove_elements(elementRemove)
         
+        self.driver.wait(self.path.get("ad_1")).remove()
+        self.driver.wait(self.path.get("ad_2")).remove()
+        self.driver.wait(self.path.get("ad_3")).remove()
+        self.driver.wait(self.path.get("ad_4")).remove()
+        self.driver.wait(self.path.get("ad_5")).remove()
+        self.driver.wait(self.path.get("ad_6")).remove()
+        
+        self.driver.wait(self.path.get("login_username"),timeout=60).send_keys(self.username)
+        self.log.info(str(self.username)+" 用户正在登录...")
+        self.driver.wait(self.path.get("login_password")).send_keys(self.password)
+        img_path=self.driver.wait(self.path.get("login_passcodeimg")).screenshot("passcode")
+        result=ocr(img_path)
+        self.driver.wait(self.path.get("login_passcode")).send_keys(result)
+        self.driver.wait(self.path.get("login_submit")).click()
+    
+    @handle_exception
+    def start(self):
+        self.driver.get(self.path.get_url("login"))
+        
+        self.login()
+        
+        current_hours = float(self.driver.wait(self.path.get("login_donehours"),timeout=120).get_text())
+        target_hours = 50.00
+        self.log.info("已完成学时: " + str(current_hours) + " 目标学时: " + str(target_hours))
+        
+        
+        self.driver.wait(self.path.get("login_studycourse")).click()
+        self.driver.wait(self.path.get("study_mycourse")).click()
         while True:
-            self.log.info("识别验证码中...")
-            self.driver.wait_to_be_visible(self.xpath.textcode_img()).screenshot('./img/needocr.png')
-            textcode=self.ocr.ocr_verifycode()
-            if not textcode :
-                self.driver.find_element(self.xpath.textcode_img()).click()
-                sleep(2)
-            else:
-                self.log.info("正在输入验证码...")
-                self.driver.find_element(self.xpath.textcode_input()).clear()
-                self.driver.find_element(self.xpath.textcode_input()).send_keys(textcode)
-                self.driver.wait_to_be_visible(self.xpath.username_input()).clear()
-                self.driver.wait_to_be_visible(self.xpath.password_input()).clear()
-                self.log.info("正在输入用户名和密码...")
-                self.driver.wait_to_be_visible(self.xpath.username_input()).send_keys(self.config.username())
-                self.driver.wait_to_be_visible(self.xpath.password_input()).send_keys(self.config.password())
-                self.driver.find_element(self.xpath.login_button()).click()
-                sleep(3)
-                try:
-                    self.driver.find_element(self.xpath.login_button())
-                except NoSuchElementException:
-                    self.driver.wait_to_be_visible(self.css.index_studyCenter(),retryTime=3).click()
-                    self.log.info("成功进入学习中心...")
+            if float(current_hours) >= target_hours:
+                self.log.info("已达到目标学时，正在退出...")
+                self.driver.quit()
+                return
+        
+            title=self.driver.wait(self.path.get("course_name")).get_text()
+            progress=self.driver.wait(self.path.get("course_progress")).get_text()
+            studyhours=self.driver.wait(self.path.get("course_studyhours")).get_text()
+            if "100" in progress:
+                self.log.info("全部课程已学习完成，正在退出...")
+                self.driver.quit()
+                return 
+            
+            self.log.info("正在学习课程: " + title + " 目前进度: " + progress + " 学时: " + studyhours)
+            self.driver.wait(self.path.get("course_study")).click()
+            self.driver.switch_to_window(self.path.get_url("lesson"))
+            self.driver.wait(self.path.get("lesson_confirm")).click()
+            self.driver.set_random_window_size()
+            loading_first_flag=True
+            play_first_flag=True
+            while True:
+                "00:12 / 23:59"
+                video_progress=self.driver.wait(self.path.get("lesson_videoprogress")).get_text()
+                current_min=video_progress[0:2]
+                current_sec=video_progress[3:5]
+                total_min=video_progress[8:10]
+                total_sec=video_progress[11:13]
+                self.log.debug("当前current_min: "+current_min+" current_sec: "+current_sec+" total_min: "+total_min+" total_sec: "+total_sec)
+                if video_progress == "00:00 / 00:00":
+                    if loading_first_flag:
+                        self.log.info("课程加载中...")
+                        loading_first_flag = False
+                
+                elif len(current_min) == 2 and current_min == total_min and current_sec == total_sec:
+                    
+                    self.log.info("当前课程学习完成，正在退出...")
+                    current_hours = current_hours+float(studyhours)
+                    self.driver.close()
+                    self.driver.switch_to_window(self.path.get_url("mycourse"))
+                    self.driver.refresh()
                     break
                 else:
-                    continue
+                    if play_first_flag:
+                        self.log.info("正在学习：" + title + " 目前视频进度: " + video_progress)
+                        play_first_flag = False
                 
-        if os.path.exists("./config/config.json") == False:
-            self.log.info("登录成功，用户信息保存至config.json中...")        
-            self.config.save_to_config_file()
-        else:
-            self.log.info("登录成功！")
-        
-        self.driver.wait_to_be_visible(self.xpath.course_mycourse()).click()    
-        self.log.info("正在获取当前进度，请稍后...")
-        remainNum_str= self.driver.wait_to_be_visible(self.css.course_remainCourseNum()).text
-        self.log.info("检测剩余科目数："+remainNum_str)
-        self.remainNum=eval(remainNum_str)
-        
-        if  self.remainNum == 0:
-            self.log.error("请先选课或本次学习已完成...")
-            raise Exception("请先选课或本次学习已完成...")
-        else:
-            self.log.info("当前有 "+str(self.remainNum)+" 节未完成学习")
-        
-        return self 
-        
-    def study_course(self,study_order):
-        while True:
-            if self.remainNum == 0:
-                self.log.info("全部学习已完成...")
-                break
-            else:
-                self.driver.wait_to_be_visible(self.css.study_title())
-                if study_order == -1:
-                    self.driver.wait_to_be_visible(self.css.course_remainCoursePageInput()).send_keys('99'+"\ue007")
-                    sleep(0.5)
-                title=self.driver.wait_to_be_visible(self.css.study_title()).text
-                videoPercentage=self.driver.find_element(self.css.study_percentage()).text
-                self.log.info("正在学习："+str(title))
-                self.log.info("当前课程学习进度："+str(videoPercentage))
-                self.log.info("进入播放页面开始学习...")
-                self.driver.wait_to_be_visible(self.css.course_study()).click()
-                sleep(2)
-                
-                self.driver.switch_to_last_window()
-                self.driver.wait_to_be_visible(self.css.study_confirm()).click()
-                
-                while True:
-                    try:
-                        self.driver.wait_to_be_visible(self.xpath.study_videoduration(),retryTime=1).text
-                    except StaleElementReferenceException as sere:
-                        self.log.error("加载不了，这是一个坏课。我要删掉哦")
-                        self.driver.close()
-                        self.driver.switch_to_last_window()
-                        self.driver.refresh()
-                        self.driver.wait_to_be_visible(self.css.study_title())
-                        self.driver.find_element(self.css.course_cancel()).click()
-                        self.driver.wait_to_be_visible(self.css.course_cancelConfirm()).click()
-                        sleep(2)
-                        self.driver.refresh()
-                        break
-                    
-                    retrytime_getstudytime=0
-                    while True:
-                        if retrytime_getstudytime == 120:
-                            self.driver.refresh()
-                            self.driver.wait_to_be_visible(self.css.study_confirm()).click()
-                            retrytime_getstudytime=0
-                        studytime=self.getVideoPlayTime()    
-                        if studytime[8] == '0' and studytime[9] == '0':
-                            retrytime_getstudytime+=1
-                            sleep(1)
-                        else:
-                            break
-                        
-                    self.log.info("当前时间/总时间："+str(studytime))
-                    
-                    remainingMin=self.getVideoRemainingMin(studytime)
-                    preremainingMin=remainingMin
-                    retrycount = 0
-                    self.log.info("剩余分钟： "+str(remainingMin))
-                    
-                    while True:
-                        studytime=self.getVideoPlayTime()
-                        remainingMin=self.getVideoRemainingMin(studytime)
-                        if remainingMin == 0:
-                            self.log.info("延时一分钟，等待课程结束退出...")
-                            sleep(60)
-                            self.remainNum -=1
-                            self.log.info("开始学习下一课...")
-                            break
-                        else:
-                            self.log.info("当前课程剩余时间："+str(remainingMin)+" 分钟")
-                            if preremainingMin != remainingMin:
-                                preremainingMin = remainingMin
-                                retrycount = 0
-                            else:
-                                if retrycount == 6:
-                                    self.log.error("视频加载超时，准备刷新...")
-                                    break
-                                else:
-                                    retrycount +=1
-                            
-                            sleep(60)
-
-                    self.driver.close()
-                    self.driver.switch_to_last_window()
-                    self.driver.refresh()
-                    
-                    break
-    def getVideoPlayTime(self,timeout=120):
-        retryCount=0
-        while retryCount<=timeout:
-            ex='\d{2}:\d{2} / \d{2}:\d{2}'
-            text=self.driver.get_page_source()
-            result=re.findall(ex,text,re.S)
-            '''21:08 / 45:48'''
-            if len(result) != 1 :
-                sleep(0.5)
-                retryCount+=1
-                continue
-            if len(result[0]) != 13:
-                sleep(0.5)
-                retryCount+=1
-                continue
-            else:
-                return result[0]
-                
-    def getVideoRemainingMin(self,studytime):
-        if studytime[0] == '0':
-            studytime=studytime[1:len(studytime)]
-        if studytime[2] == '0':
-            studytime=studytime[0:2]+studytime[3:len(studytime)]
-        if studytime[6] == '0':
-            studytime=studytime[0:6]+studytime[7:len(studytime)]
+                self.driver.sleep(10)
             
-        '''21:08 / 45:48'''
-        '''0:8 / 33:50'''
-        ex='(.*?):(.*?) / (.*?):'
-        result=re.findall(ex,studytime,re.S)[0]
-        studyCurrentTimeMin,videoDurationMin=eval(result[0]),eval(result[2])
-        remainingMin=videoDurationMin-studyCurrentTimeMin
-        return remainingMin       
-while True:
-    try:
-        log=Log('main','i')
-        las=Las()
-        las.login().study_course(las.config.study_order())
-        if las.remainNum == 0:
-            break
-    except Exception as e:
-        log.error(traceback.format_exc())
-        log.error('发生错误， '+str(las.config.restart_seconds())+' 秒等待后重启')
-        sleep(las.config.restart_seconds())
         
-    
-    
-
+if __name__ == "__main__":
+    # 请替换成你的登录信息
+    Lngbzx_Autostudy("username","password").start()

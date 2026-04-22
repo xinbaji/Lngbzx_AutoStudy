@@ -1,26 +1,20 @@
 import ddddocr
-from utils.log import Log
-class Ocr:
-    def __init__(self) -> None:
-        
-        self.ocr= ddddocr.DdddOcr()
-        self.log=Log('ocr','d')
-    def ocr_verifycode(self,picpath = "./img/needocr.png"):
-        image = open(picpath, "rb").read()
-        result = self.ocr.classification(image)
-        self.log.debug("result:"+str(result))
-        
-        if len(result) != 4:
-            self.log.info("未识别到结果，重新检测")
-            return False
-        
-        for i in result:
-            if not i.isdigit() :
-                self.log.info("未识别到结果，重新检测")
-                return False
-        
-        code=str(result)
-        self.log.info("当前验证码为："+code)
-        
-        return code
+import os
+def ocr(data):
     
+    ocr_tool = ddddocr.DdddOcr(show_ad=False)
+    if isinstance(data, str):
+        if os.path.exists(data):
+            with open(data, "rb") as f:
+                img_bytes = f.read()
+        else:
+            raise FileNotFoundError(f"文件 {data} 不存在")
+    
+
+    text = ocr_tool.classification(img_bytes)
+
+    print(f"识别结果: {text}")
+    return text
+
+if __name__ == "__main__":
+    ocr("screenshots\passcode.png")
