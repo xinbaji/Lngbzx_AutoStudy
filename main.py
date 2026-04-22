@@ -61,11 +61,11 @@ class Lngbzx_Autostudy:
                 self.driver.quit()
                 return 
             
-            self.log.info("正在学习课程: " + title + " 目前进度: " + progress + " 学时: " + studyhours)
+            
             self.driver.wait(self.path.get("course_study")).click()
             self.driver.switch_to_window(self.path.get_url("lesson"))
             self.driver.wait(self.path.get("lesson_confirm")).click()
-            self.driver.set_random_window_size()
+            self.driver.reset_window_size()
             loading_first_flag=True
             play_first_flag=True
             while True:
@@ -91,7 +91,7 @@ class Lngbzx_Autostudy:
                     break
                 else:
                     if play_first_flag:
-                        self.log.info("正在学习：" + title + " 目前视频进度: " + video_progress)
+                        self.log.info("正在学习：" + title +" 学时：" + studyhours + " 目前视频进度: " + video_progress)
                         play_first_flag = False
                 
                 self.driver.sleep(10)

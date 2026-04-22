@@ -259,10 +259,9 @@ class Driver:
         self.driver.set_window_size(width,height)
     def get_current_window_size(self):
         return self.driver.get_window_size()
-    def set_random_window_size(self):
-        x,y=self.get_current_window_size().values()
-        width=randint(x-10,x)
-        height=randint(y-10,y)
+    def reset_window_size(self):
+        width,height=self.get_current_window_size().values()
+        self.set_window_size(width-2,height-2)
         self.set_window_size(width,height)
     def switch_to_window(self,index=-1):
         success_flag=False
