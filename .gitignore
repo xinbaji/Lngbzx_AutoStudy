@@ -2,3 +2,4 @@ env
 log
 utils/__pycache__
 screenshots
+test.py
