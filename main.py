@@ -89,6 +89,8 @@ class Lngbzx_Autostudy:
                     self.driver.switch_to_window(self.path.get_url("mycourse"))
                     self.driver.refresh()
                     break
+                elif len(current_min) != 2:
+                    self.driver.reset_window_size()
                 else:
                     if play_first_flag:
                         self.log.info("正在学习：" + title +" 学时：" + studyhours + " 目前视频进度: " + video_progress)
