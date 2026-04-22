@@ -13,7 +13,6 @@ def ocr(data):
 
     text = ocr_tool.classification(img_bytes)
 
-    print(f"识别结果: {text}")
     return text
 
 if __name__ == "__main__":
