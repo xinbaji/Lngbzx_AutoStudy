@@ -13,7 +13,7 @@ class Lngbzx_Autostudy:
     def __init__(self,username:str,password:str):
         self.username = username
         self.password = password
-        self.driver = Driver()
+        self.driver = Driver(mute=True)
         self.log=Log("Lngbzx_Autostudy", "i").logger
         self.path = Path()
         

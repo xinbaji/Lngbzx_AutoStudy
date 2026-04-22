@@ -62,7 +62,7 @@ def only_chained_calls(func):
 
 class Driver:
 
-    def __init__(self) -> None:
+    def __init__(self,mute=False) -> None:
 
         self.log = Log("EasySelenium", "i").logger
         
@@ -104,6 +104,10 @@ class Driver:
         options.add_experimental_option("excludeSwitches", ["enable-logging"])
         options.add_experimental_option("excludeSwitches", ["enable-automation"])
         options.add_argument("log-level=3")
+        
+        if mute:
+            options.add_argument("--mute-audio")
+        
         self.driver = __driver(options=options)
         self.driver.maximize_window()
         self.driver.set_page_load_timeout(self.timeout_seconds)
